@@ -59,11 +59,9 @@ CREATE TABLE DonNhapHang (
     NgayLap DATE not null,
     MaNV INT not null,
     MaNCC INT not null,
-	MaKho int not null,
 	tongTien float null,
 	constraint fk_nh_ncc foreign key (mancc) references nhacungcap(mancc),
-	constraint fk_nh_nv foreign key (MaNV) references nhanvien(MaNV),
-	constraint fk_nh_kho foreign key (makho) references kho(makho)
+	constraint fk_nh_nv foreign key (MaNV) references nhanvien(MaNV)
 );
 
 -- Tạo bảng Đơn xuất hàng
