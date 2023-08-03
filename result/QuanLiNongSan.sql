@@ -11,7 +11,7 @@ USE QuanLySanPhamNN;
 -- priority 1
 -- Tạo bảng Nhà Cung Cấp
 CREATE TABLE NhaCungCap (
-    MaNCC INT identity(1,1) PRIMARY KEY,
+    MaNCC INT PRIMARY KEY,
     TenNCC NVARCHAR(255) NOT NULL,
     DiaChi NVARCHAR(255) not null,
     SDT VARCHAR(15) not null,
@@ -19,14 +19,14 @@ CREATE TABLE NhaCungCap (
 );
 -- Tạo bảng Kho
 CREATE TABLE Kho (
-    MaKho INT identity(1,1) PRIMARY KEY,
+    MaKho INT PRIMARY KEY,
     TenKho NVARCHAR(255) not null,
     DiaChi NVARCHAR(255) not null
 );
 
 -- Tạo bảng Khách hàng
 CREATE TABLE KhachHang (
-    MaKH INT identity(1,1) PRIMARY KEY,
+    MaKH INT PRIMARY KEY,
     tenKH NVARCHAR(255) NOT NULL,
     DiaChi NVARCHAR(255) not null,
     SDT NVARCHAR(15) not null
@@ -34,7 +34,7 @@ CREATE TABLE KhachHang (
 
 --Tạo bảng nhân viên
 CREATE TABLE NhanVien(
-	MaNV INT identity(1,1) PRIMARY KEY,
+	MaNV INT PRIMARY KEY,
 	TenNV NVARCHAR(30) not null,
 	SDT NVARCHAR(15) not null
 );
@@ -42,7 +42,7 @@ CREATE TABLE NhanVien(
 -- priority 2
 -- Tạo bảng Sản Phẩm
 CREATE TABLE SanPham (
-    MaSP INT identity(1,1) PRIMARY KEY,
+    MaSP INT PRIMARY KEY,
 	MaNCC INT not null,
     TenSP NVARCHAR(255) NOT NULL,
     DonViTinh NVARCHAR(50),
@@ -55,17 +55,19 @@ CREATE TABLE SanPham (
 
 -- Tạo bảng Đơn nhập hàng
 CREATE TABLE DonNhapHang (
-    maDNH INT identity(1, 1) PRIMARY KEY,
+    maDNH INT PRIMARY KEY,
     NgayLap DATE not null,
     MaNV INT not null,
     MaNCC INT not null,
+	MaKho int not null,
 	constraint fk_nh_ncc foreign key (mancc) references nhacungcap(mancc),
-	constraint fk_nh_nv foreign key (MaNV) references nhanvien(MaNV)
+	constraint fk_nh_nv foreign key (MaNV) references nhanvien(MaNV),
+	constraint fk_nh_kho foreign key (makho) references kho(makho)
 );
 
 -- Tạo bảng Đơn xuất hàng
 CREATE TABLE DonXuatHang (
-    maDXH INT identity(1, 1) PRIMARY KEY,
+    maDXH INT PRIMARY KEY,
     NgayLap DATE not null,
     NgayDuKien DATE not null,
     MaNV INT not null,
@@ -76,9 +78,19 @@ CREATE TABLE DonXuatHang (
 
 
 -- priority 3
+-- Tạo bảng Nhập hàng chi tiết
+CREATE TABLE NhapHangChiTiet (
+    --maNHCT INT primary key,
+	maDNH INT not null,
+	maSP INT not null,
+    SoLuongNhap INT not null,
+	constraint pk_nhct primary key (madnh, masp),
+	constraint fk_nhct_nh foreign key (maDNH) references donnhaphang(maDNH),
+	constraint fk_nhct_kho foreign key (maSP) references sanpham(masp)
+);
 -- Tạo bảng Sản phẩm tồn kho
 CREATE TABLE SanPhamTonKho (
-	maSPtonKho int identity(1,1) primary key,
+	maSPtonKho int primary key,
     MaKho INT not null,
     MaSP INT not null,
     SoLuongTonKho INT not null,
@@ -86,26 +98,21 @@ CREATE TABLE SanPhamTonKho (
 	constraint fk_tk_sp foreign key (masp) references sanpham(masp)
 );
 
-
--- priority 4
--- Tạo bảng Nhập hàng chi tiết
-CREATE TABLE NhapHangChiTiet (
-    maNHCT INT identity(1,1) primary key,
-	maDNH INT not null,
-	maSPtonKho INT not null,
-    SoLuongNhap INT not null,
-	constraint fk_nhct_nh foreign key (maDNH) references donnhaphang(maDNH),
-	constraint fk_nhct_kho foreign key (maSPtonKho) references sanphamtonkho(maSPtonKho)
-);
+--priority 4
 -- Tạo bảng Xuất hàng chi tiết
 CREATE TABLE XuatHangChiTiet (
-    maXHCT INT identity(1,1) PRIMARY KEY ,
+    --maXHCT INT PRIMARY KEY ,
 	SoLuongSp INT not null,
     maDXH INT not null,
 	maSPtonKho INT not null,
-	constraint fk_xhct_nh foreign key (maDXH) references donxuathang(maDXH),
-	constraint fk_xhct_kho foreign key (maSPtonKho) references sanphamtonkho(maSPtonKho)
+	constraint pk_xhct primary key (madxh, masptonkho) ,
+	constraint fk_xhct_nh foreign key (maDXH) 
+	references donxuathang(maDXH),
+	constraint fk_xhct_kho foreign key (maSPtonKho) 
+	references sanphamtonkho(maSPtonKho)
 );
+
+
 
 
 
