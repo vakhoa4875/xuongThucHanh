@@ -287,10 +287,25 @@ begin
 end
 
 --2.	Tạo function xuất ra thông tin của những sản phẩm bán chạy nhất<có biến int là top sản phẩm bán chạy>
+go
+create or alter function fn_thongTinSpBanChayNhat ( @i int)
+returns table
+return(
+	select top 1 TenSP,SoLuongSp from SanPham 
+	join SanPhamTonKho on SanPham.MaSP = SanPhamTonKho.MaSP
+	join XuatHangChiTiet on SanPhamTonKho.maSPtonKho = XuatHangChiTiet.maSPtonKho
+	order by SoLuongSp desc)
+go
 
+select * from dbo.fn_thongTinSpBanChayNhat(1)
 
 --3.	Tạo view xuất ra các sản phẩm tồn kho và số lượng của chúng <group by maKho>
 
+CREATE VIEW ViewSanPhamTonKho AS
+SELECT makho AS MaKho, masp AS MaSP, soluongtonkho AS SoLuongTonKho
+FROM SanPhamTonKho
+GROUP BY makho, masp, soluongtonkho;
+ select * from ViewSanPhamTonKho
 
 --4.	Tạo trigger khi insert sản phẩm, và insert kho, sẽ tạo thêm số sản phẩm tồn kho tương ứng 
 --(thông tin thêm: tổng số sp tồn kho = tổng số sp x tổng số kho)
@@ -368,16 +383,85 @@ go
 --5.	Tạo trigger khi bán hàng<insert into xuất hàng chi tiết>, nếu số lượng sản phẩm được mua lớn hơn số lượng 
 --tồn kho thì sẽ thông báo là hàng không đủ, nhân viên thực nghiệp vụ trong 1 khoảng thời gian nhất định và đưa ra
 --kết quả nhanh chóng nhất <hủy đơn, giảm số lượng mặt hàng, delay (check thời gian tối đa)>
-
+create or alter trigger tr_checkTonKho on xuathangchitiet
+for insert
+as begin
+	begin tran
+	begin try
+		declare @masptk int, @sl int;
+		select @masptk = masptonkho, @sl = SoLuongSp from inserted
+		if (@masptk not in (select masptonkho from SanPhamTonKho))
+		begin
+			raiserror(N'Mã sản phẩm tồn kho không tồn tại', 16, 2)
+			rollback
+		end
+		else begin
+			if (@sl > (select SoLuongTonKho from SanPhamTonKho where maSPtonKho = @masptk))
+			begin
+				raiserror(N'Số lượng sản phẩm không đủ', 16, 2)
+				rollback
+			end
+		end
+	end try
+	begin catch
+		if @@TRANCOUNT > 0 rollback;	
+	end catch
+end
 
 --6.	Tạo procedure cho nhân viên tạo đơn xuất hàng
-
-
 --7.	Tạo trigger khi thêm đơn nhập hàng hoặc đơn xuất hàng, tính tổng tiền
 --nhập hoặc xuất hàng của tùy loại đơn TongDNH += (95%*đơn giá)* SL SP || TongDXH += đơn giá * SLSP
+go
+CREATE TRIGGER trg_tinhTongTienNhap
+ON DonNhapHang
+AFTER INSERT
+AS
+BEGIN
+    -- Cập nhật tổng tiền nhập (TongDNH) cho đơn nhập hàng
+    UPDATE DonNhapHang
+    SET tongTien = (
+			select tongTien = (DonGia * 0.95) * SoLuongNhap from SanPhamTonKho 
+		join SanPham on SanPhamTonKho.MaSP = SanPham.MaSP
+		join NhapHangChiTiet on SanPhamTonKho.maSPtonKho = NhapHangChiTiet.maSPTK
+		join DonNhapHang on NhapHangChiTiet.maDNH = DonNhapHang.maDNH
+	)
+	
+END;
+GO
 
+-- Tạo trigger cho bảng Đơn xuất hàng (DXH)
+CREATE TRIGGER trg_tinhTongTienXuat
+ON DonXuatHang
+AFTER INSERT
+AS
+BEGIN
+    -- Cập nhật tổng tiền xuất hàng (TongDXH) cho đơn xuất hàng
+    UPDATE DonXuatHang
+    SET tongTien = (
+			select tongTien = DonGia * SoLuongSp from SanPhamTonKho 
+		join SanPham on SanPhamTonKho.MaSP = SanPham.MaSP
+		join XuatHangChiTiet on SanPhamTonKho.maSPtonKho = XuatHangChiTiet.maSPtonKho
+		join DonXuatHang on XuatHangChiTiet.maDXH = DonXuatHang.maDXH
+	);
+END;
+GO
 
 --8.	Tạo view doanh thu công ty = tổng tất cả đơn xh – tổng tất cả đơn nhập hàng
+CREATE VIEW ViewDoanhThuCongTy AS
+SELECT 
+    ISNULL(SUM(XHCT.SoLuongSp * SP.DonGia), 0) - ISNULL(SUM(NHCT.SoLuongNhap * SP.DonGia), 0) AS DoanhThu
+FROM 
+(
+    SELECT maDXH, maSPtonKho, SoLuongSp
+    FROM XuatHangChiTiet
+) AS XHCT
+LEFT JOIN SanPhamTonKho ON XHCT.maSPtonKho = SanPhamTonKho.maSPtonKho
+LEFT JOIN SanPham AS SP ON XHCT.maSPtonKho = SP.MaSP
+LEFT JOIN (
+    SELECT maDNH, maSP, SoLuongNhap
+    FROM NhapHangChiTiet
+) AS NHCT ON XHCT.maSPtonKho = NHCT.maSP;
 
+SELECT * FROM ViewDoanhThuCongTy
 
 
