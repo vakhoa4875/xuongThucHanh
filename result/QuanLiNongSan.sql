@@ -113,11 +113,3 @@ CREATE TABLE XuatHangChiTiet (
 	references sanphamtonkho(maSPtonKho)
 );
 
-
-
-
-
-
-
-
-
